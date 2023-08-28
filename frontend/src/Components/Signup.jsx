@@ -120,9 +120,6 @@ function Signup() {
               setModelMessage(params.data.error);
               setShowModal(true)
             }else if(params.data.success){//inscription reussi
-              setModelTittle("inscription reussi");
-              setModelMessage("l'utilsateur a bien ete inscrite😁");
-              setShowModal(true)
               return new Promise((res,rej)=>{
                 res(true);
               })
