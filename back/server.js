@@ -5,7 +5,6 @@ const jwt=require("jsonwebtoken");
 const mysql=require('mysql2/promise');
 const http=require('http');
 const { Server} = require("socket.io");
-const { disconnect } = require('process');
 
 const app=express();
 
@@ -25,12 +24,96 @@ server.listen(3002,function() {
     console.log("server running on port 3002(socket.io)");
 })
 
+let socketUsers=[];
+
 io.on("connection",function(socket) {
-    console.log("connected as: "+socket.id);
-    socket.on("disconnect", (reason) => {
-        console.log("disconnected because",reason);
-    });
+    socket.on("join",({token})=>{
+        const userInfo=jwt.decode(token,secretKey);
+        socketUsers.push({
+            user:userInfo,
+            socketId:socket.id
+        })
+        //socket user updates
+        socket.emit('socketUsersUpdated',{
+            users:socketUsers
+        })
+        socket.broadcast.emit('socketUsersUpdated',{
+            users:socketUsers
+        })
+    })
+
+    socket.on('askOnlineUsers',function() {
+        const initial=[...socketUsers];
+
+        const connectesListMap=io.sockets.adapter.sids;
+        var connectesList=Array.from(connectesListMap);
+        connectesList=connectesList.map(el=>el[0])
+        const removeIndex=[];
+        socketUsers.forEach((SU,index) => {
+            const i=connectesList.indexOf(SU.socketId)
+            if(i==-1)removeIndex.push(index);
+        });
+        removeIndex.forEach(el => {
+            socketUsers.splice(el,1);
+        });
+        if(removeIndex.length>0){
+            setTimeout(() => {
+                socket.emit('responseOnlineUsers',{
+                    users:socketUsers
+                })
+            }, 500);
+        }
+    })
+
+    socket.on('disconnect',function() {
+        deconnectOneUser(socket.id);
+        //socket user updates
+        socket.emit('socketUsersUpdated',{
+            users:socketUsers
+        })
+        socket.broadcast.emit('socketUsersUpdated',{
+            users:socketUsers
+        })
+    })
 })
+
+function deconnectOneUser(socketid) {
+    const socketIdList=socketUsers.map((s)=>s.socketId)
+    const index=socketIdList.indexOf(socketid);
+    socketUsers.splice(index,1);
+}
+
+/*
+async function getUIDBySocket(socketId) {
+    const conn = await mysql.createConnection(connInfo);
+    const value=await conn.execute("SELECT uid from connection where socketid like ?",["%"+socketId+"%"])
+    console.log(value);
+    return (value[0][0])? value[0][0].uid:'';
+}
+
+async function getSocketIdLists(uid) {
+    const conn = await mysql.createConnection(connInfo);
+    const [result,fields]=await conn.execute("SELECT socketid from connection where uid=?",[uid])
+    return (result.length>0) ? JSON.parse(((result.map(el=>el.socketid))[0])) : JSON.parse('["."]');
+}
+
+async function addSocketId(uid,socket) {
+    let currList=[];
+    currList=await getSocketIdLists(uid);
+    currList.push(socket)
+    const conn=await mysql.createConnection(connInfo);
+    conn.execute("UPDATE connection SET socketid = ? WHERE connection.uid = ?",[JSON.stringify(currList),uid])
+}
+
+async function removeSocketId(socket) {
+    const uid=await getUIDBySocket(socket.id)
+    let currList=[];
+    currList=await getSocketIdLists(uid);
+    const newList=currList.splice(currList.indexOf(socket),1)
+    const conn=await mysql.createConnection(connInfo);
+    conn.execute("UPDATE connection SET socketid = ? WHERE connection.uid = ?",[JSON.stringify(newList),uid])
+}
+*/
 
 const connInfo={
     host:'localhost',
@@ -68,7 +151,8 @@ app.post('/signup',async (req,res)=>{
         const success = await conn.execute(sql,values)
         res.json({success})
     }
-})
+}
+)
 
 app.get('/nextId',async function(req,res){
     const connSync= await mysql.createConnection(connInfo);
@@ -79,6 +163,7 @@ app.get('/nextId',async function(req,res){
         next="U"+(last+1);
     }
     res.send(next)
+
 })
 
 async function verifierSiExiste(nom) {
@@ -86,6 +171,7 @@ async function verifierSiExiste(nom) {
     const [result,fields]= await conn.execute("select * from user where username=?",[nom])
     conn.end();
     return (result.length>=1)
+
 }
 
 async function getUID(nom) {
@@ -103,6 +189,7 @@ async function connectionAccepted(uid) {
         accepted:(result.length<=0),
         materiel:(result.length<=0)?"":result[0].conninfo
     }
+
 }
 
 app.post('/login',async (req,res)=>{
@@ -115,7 +202,7 @@ app.post('/login',async (req,res)=>{
             const conn = await mysql.createConnection(connInfo)
             const [result,fields]= await conn.execute("select * from user where username=? and mdp=?",[username,password])
             if((result.length>=1)){//connection valide et mot de passe correct
-                conn.execute('insert into connection values(?,?,1)',[uid,materiel]);
+                conn.execute('insert into connection values(?,?,1,?)',[uid,materiel,JSON.stringify(["."])]);
                 //generer un token de connection
                 const token=jwt.sign({uid,username,password},secretKey,{expiresIn:"15d"})
                 res.json({token})
@@ -129,6 +216,8 @@ app.post('/login',async (req,res)=>{
     } catch (error) {
         console.log(error);
     }
+
+
 })
 
 app.post('/notonline',(req,res)=>{

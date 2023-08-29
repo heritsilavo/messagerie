@@ -3,11 +3,16 @@ import { accountServices } from '../../_services/account.services';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom'
 import {Link} from 'react-router-dom'
+import { useContext } from 'react';
+import { socketContext } from '../Connected';
 
 function Nav() {
-const navigate=useNavigate();
+    const socket=useContext(socketContext);
+
+    const navigate=useNavigate();
 
     const deconnexion=async ()=>{
+        socket.disconnect();
         if(accountServices.isLogged()){
             await axios.post('/logout',{
                 token:accountServices.getToken()
