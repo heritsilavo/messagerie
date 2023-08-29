@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Nav from './utilities/Nav';
 import { Outlet } from 'react-router-dom';
 import io from "socket.io-client"
@@ -13,7 +13,21 @@ const askFrequence=1000;
 
 //COMPONNENT
 function Connected() {
+    const [onlineUsers,setOnlineUsers]=useState([]);
+
     socket=io.connect("http://localhost:3002/");
+
+    const arrangeOnlineUser=(users)=>{
+        const res=[];
+        const resId=[];
+        users.forEach(element => {
+            if(!resId.includes(element.user.uid)){
+                res.push(element);
+                resId.push(element.user.uid);
+            }
+        });
+        return res;
+    }
 
     useEffect(()=>{
         socket.emit("join",{
@@ -21,24 +35,28 @@ function Connected() {
         })
 
         setInterval(() => {
-            console.log("asking...");
             socket.emit("askOnlineUsers")
         }, askFrequence);
     },[])
     
     useEffect(()=>{
         socket.on('socketUsersUpdated',({users})=>{
-            console.log(users);
+            setOnlineUsers(arrangeOnlineUser(users))
         })
 
         socket.on('responseOnlineUsers',({users})=>{
-            console.log(users);
+            setOnlineUsers(arrangeOnlineUser(users))
         })
     },[socket])
     
     return <socketContext.Provider value={socket}>
         <Nav></Nav>
-        <Outlet></Outlet>    
+        <Outlet></Outlet>
+        <ul>
+        {
+            onlineUsers.map((el,indice)=><li key={indice}>{el.user.uid}</li>)
+        }
+        </ul>
     </socketContext.Provider>
 }
 export default Connected;

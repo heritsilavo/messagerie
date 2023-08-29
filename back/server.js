@@ -33,6 +33,7 @@ io.on("connection",function(socket) {
             user:userInfo,
             socketId:socket.id
         })
+        console.log("user join: ",userInfo.uid);
         //socket user updates
         socket.emit('socketUsersUpdated',{
             users:socketUsers
@@ -43,16 +44,18 @@ io.on("connection",function(socket) {
     })
 
     socket.on('askOnlineUsers',function() {
-        const initial=[...socketUsers];
-
         const connectesListMap=io.sockets.adapter.sids;
         var connectesList=Array.from(connectesListMap);
         connectesList=connectesList.map(el=>el[0])
         const removeIndex=[];
+        
+
         socketUsers.forEach((SU,index) => {
             const i=connectesList.indexOf(SU.socketId)
             if(i==-1)removeIndex.push(index);
         });
+    
+
         removeIndex.forEach(el => {
             socketUsers.splice(el,1);
         });
@@ -61,7 +64,7 @@ io.on("connection",function(socket) {
                 socket.emit('responseOnlineUsers',{
                     users:socketUsers
                 })
-            }, 500);
+            }, 1000);
         }
     })
 
@@ -80,7 +83,8 @@ io.on("connection",function(socket) {
 function deconnectOneUser(socketid) {
     const socketIdList=socketUsers.map((s)=>s.socketId)
     const index=socketIdList.indexOf(socketid);
-    socketUsers.splice(index,1);
+    console.log("deconnecte:",index);
+    if(index!=-1)socketUsers.splice(index,1);
 }
 
 /*
