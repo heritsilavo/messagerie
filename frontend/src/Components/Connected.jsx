@@ -9,12 +9,12 @@ let socket=null;
 
 export const socketContext=createContext(null);
 
-const askFrequence=1000;
+const askFrequence=5000;
 
 //COMPONNENT
 function Connected() {
     const [onlineUsers,setOnlineUsers]=useState([]);
-
+    
     socket=io.connect("http://localhost:3002/");
 
     const arrangeOnlineUser=(users)=>{
@@ -33,6 +33,8 @@ function Connected() {
         socket.emit("join",{
             token:accountServices.getToken()
         })
+
+        const tok=accountServices.getToken();
 
         setInterval(() => {
             socket.emit("askOnlineUsers")

@@ -5,6 +5,7 @@ const jwt=require("jsonwebtoken");
 const mysql=require('mysql2/promise');
 const http=require('http');
 const { Server} = require("socket.io");
+const { log } = require('console');
 
 const app=express();
 
@@ -43,34 +44,44 @@ io.on("connection",function(socket) {
         })
     })
 
-    socket.on('askOnlineUsers',function() {
+    socket.on('askOnlineUsers',async function() {
         const connectesListMap=io.sockets.adapter.sids;
         var connectesList=Array.from(connectesListMap);
         connectesList=connectesList.map(el=>el[0])
         const removeIndex=[];
-        
-
+   
         socketUsers.forEach((SU,index) => {
             const i=connectesList.indexOf(SU.socketId)
             if(i==-1)removeIndex.push(index);
         });
     
-
         removeIndex.forEach(el => {
             socketUsers.splice(el,1);
         });
+
+        await updateUserList();
+        socket.emit('socketUsersUpdated',{
+            users:socketUsers
+        })
+        socket.broadcast.emit('socketUsersUpdated',{
+            users:socketUsers
+        })
+
         if(removeIndex.length>0){
             setTimeout(() => {
                 socket.emit('responseOnlineUsers',{
                     users:socketUsers
                 })
             }, 1000);
+            
         }
     })
 
     socket.on('disconnect',function() {
+        console.log('deconnecxino');
         deconnectOneUser(socket.id);
         //socket user updates
+        //console.log(socketUsers);
         socket.emit('socketUsersUpdated',{
             users:socketUsers
         })
@@ -80,10 +91,28 @@ io.on("connection",function(socket) {
     })
 })
 
+async function updateUserList() {
+    const conn= await mysql.createConnection(connInfo);
+    const [result,fields]=await conn.execute("select * from connection")
+    const usersFromBD=result.map((el)=>el.uid);
+    const userHere=socketUsers.map((el)=>el.user.uid)
+    
+    const indexsList=[]
+
+    userHere.forEach((element,index) => {
+        if(!usersFromBD.includes(element)){
+            indexsList.push(index);
+        }
+    });
+    
+    indexsList.forEach(element => {
+        socketUsers.splice(element,1)
+    });
+}
+
 function deconnectOneUser(socketid) {
     const socketIdList=socketUsers.map((s)=>s.socketId)
     const index=socketIdList.indexOf(socketid);
-    console.log("deconnecte:",index);
     if(index!=-1)socketUsers.splice(index,1);
 }
 
