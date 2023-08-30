@@ -11,6 +11,7 @@ import Parametres from './Components/Parametres'
 import { useEffect } from 'react'
 import axios from 'axios'
 import { accountServices } from './_services/account.services'
+import UserList from './Components/utilities/UserList'
 
 const router=createBrowserRouter([
   {
@@ -27,7 +28,25 @@ const router=createBrowserRouter([
       },
       {
         path:"Message",
-        element: <Messages/>        
+        element: <Messages/>,
+        children:[
+          {
+            path:'UserList',
+            element:<UserList/>
+          },
+          {
+            path:'SendReceiveMsg',
+            element:''
+          },
+          {
+            path:'',
+            element:<UserList/>
+          },
+          {
+            path:'*',
+            element:<UserList/>
+          }
+        ]
       },
       {
         path:"Parametre",

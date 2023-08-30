@@ -9,13 +9,20 @@ let socket=null;
 
 export const socketContext=createContext(null);
 export const onlineUserContext=createContext(null);
+export const themeContext=createContext(null);
+export const currentUserContext=createContext(null);
 
-
-const askFrequence=5000;
+const askFrequence=1000;
 
 //COMPONNENT
 function Connected() {
-    
+    const [theme,setTheme]=useState({dark:true})
+    const [currentUser,setCurrUser]=useState({});
+
+    function updateTheme(newValue) {
+        setTheme(newValue)
+    }
+
     const [onlineUsers,setOnlineUsers]=useState([]);
     
     socket=io.connect("http://localhost:3002/");
@@ -35,9 +42,17 @@ function Connected() {
 
     //quand le composant est montee, socket.io est connectée 
     useEffect(()=>{
-        socket.emit("join",{
-            token:accountServices.getToken()
+        //utilisateur courant initiale
+        socket.on('localUser',(userLocale)=>{
+            setCurrUser(userLocale);
         })
+        //connecter au socket
+        const tok=accountServices.getToken();
+        if(tok){
+            socket.emit("join",{
+                token:tok
+            })
+        }
 
         //actualiser la liste des utilisateur connectes a chaque 1000secondes
         setInterval(() => {
@@ -60,12 +75,16 @@ function Connected() {
         })
     },[socket])
     
-    return <socketContext.Provider value={socket}>
-        <Nav></Nav>
-
-        <onlineUserContext.Provider value={onlineUsers}>
-            <Outlet></Outlet>
-        </onlineUserContext.Provider>
-    </socketContext.Provider>
+    return(<currentUserContext.Provider value={currentUser}>
+            <themeContext.Provider value={[theme,updateTheme]}>
+                <socketContext.Provider value={socket}>
+                    <Nav></Nav>
+                    <onlineUserContext.Provider value={onlineUsers}>
+                        <Outlet></Outlet>
+                    </onlineUserContext.Provider>
+                </socketContext.Provider>
+            </themeContext.Provider>
+          </currentUserContext.Provider>
+    )
 }
 export default Connected;

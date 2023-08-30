@@ -1,0 +1,15 @@
+.list_item{
+    width: 99%;
+    cursor: pointer;
+}
+.point_cont{
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+.point{
+    color: rgb(51, 255, 0);
+    font-size: 4em;
+}

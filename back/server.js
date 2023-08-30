@@ -26,22 +26,26 @@ server.listen(3002,function() {
 })
 
 let socketUsers=[];
-
+let globalSocket=null;
 io.on("connection",function(socket) {
+    globalSocket=socket;
     socket.on("join",({token})=>{
         const userInfo=jwt.decode(token,secretKey);
-        socketUsers.push({
-            user:userInfo,
-            socketId:socket.id
-        })
-        console.log("user join: ",userInfo.uid);
-        //socket user updates
-        socket.emit('socketUsersUpdated',{
-            users:socketUsers
-        })
-        socket.broadcast.emit('socketUsersUpdated',{
-            users:socketUsers
-        })
+        if(!!userInfo){
+            socket.emit('localUser',userInfo);
+            socketUsers.push({
+                user:userInfo,
+                socketId:socket.id
+            })
+            console.log("user join: ",userInfo.uid);
+            //socket user updates
+            socket.emit('socketUsersUpdated',{
+                users:socketUsers
+            })
+            socket.broadcast.emit('socketUsersUpdated',{
+                users:socketUsers
+            })
+        }
     })
 
     socket.on('askOnlineUsers',function() {
@@ -64,7 +68,7 @@ io.on("connection",function(socket) {
                 socket.emit('responseOnlineUsers',{
                     users:socketUsers
                 })
-            }, 5000);
+            }, 2000);
             
         }
     })
@@ -90,6 +94,11 @@ io.on("connection",function(socket) {
             users:socketUsers
         })
     })
+
+    socket.on('getAllUserList',async ()=>{
+        const allUserList=await getAllUsers();
+        socket.emit('updateAllUsersList',allUserList)
+    })
 })
 
 const connInfo={
@@ -97,6 +106,12 @@ const connInfo={
     user:'tsila',
     password:'12345',
     database:'messagerie'
+}
+
+async function getAllUsers() {
+   const conn=await mysql.createConnection(connInfo);
+   const [result,fields]=await conn.execute('select * from user')
+   return result; 
 }
 
 async function updateUserList() {
@@ -184,6 +199,10 @@ app.post('/signup',async (req,res)=>{
         const sql="insert into user values(?,?,?,?)"
         const values=[user.uid,user.username,user.mail,user.password]
         const success = await conn.execute(sql,values)
+        if(!!globalSocket){
+            const allUserList=await getAllUsers();
+            globalSocket.broadcast.emit('updateAllUsersList',allUserList)
+        }
         res.json({success})
     }
 }
@@ -206,7 +225,6 @@ async function verifierSiExiste(nom) {
     const [result,fields]= await conn.execute("select * from user where username=?",[nom])
     conn.end();
     return (result.length>=1)
-
 }
 
 async function getUID(nom) {
@@ -245,7 +263,7 @@ app.post('/login',async (req,res)=>{
                 return res.json({error:"Mot de passe incorrect"});    
             }
         }else{//connection refusée
-            if((await connectionAccepted(uid)).materiel===materiel) return res.json({error:"veillez vous deconnecter d'abord de cet appareil puis réessayez😅"});
+            if((await connectionAccepted(uid)).materiel===materiel) return res.json({error:"veillez vous deconnecter d'abord de cet appareil puis réessayez😅",errType:"DCCA"});
             return res.json({error:"L'utilisateur est deja connectée a cet appareil:    "+(await connectionAccepted(uid)).materiel});
         }
     } catch (error) {

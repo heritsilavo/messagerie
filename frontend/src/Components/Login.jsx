@@ -40,9 +40,17 @@ function Login() {
               navigate('/');
             }
             if(data.error){
-              setModalTittle('erreur de connection')
-              setModalMessage(data.error)
-              setShowModal(true);
+              if(data.errType){
+                const token=accountServices.getToken();
+                accountServices.logout();
+                accountServices.saveToken(token);  
+                navigate('/');
+              }else{
+                setModalTittle('erreur de connection')
+                setModalMessage(data.error)
+                setShowModal(true);
+              }
+              
             }
           } catch (error) {
             console.log(error);
