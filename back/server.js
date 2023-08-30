@@ -44,7 +44,7 @@ io.on("connection",function(socket) {
         })
     })
 
-    socket.on('askOnlineUsers',async function() {
+    socket.on('askOnlineUsers',function() {
         const connectesListMap=io.sockets.adapter.sids;
         var connectesList=Array.from(connectesListMap);
         connectesList=connectesList.map(el=>el[0])
@@ -59,6 +59,17 @@ io.on("connection",function(socket) {
             socketUsers.splice(el,1);
         });
 
+        if(removeIndex.length>0){
+            setTimeout(() => {
+                socket.emit('responseOnlineUsers',{
+                    users:socketUsers
+                })
+            }, 5000);
+            
+        }
+    })
+
+    socket.on("logout",async function() {
         await updateUserList();
         socket.emit('socketUsersUpdated',{
             users:socketUsers
@@ -66,22 +77,12 @@ io.on("connection",function(socket) {
         socket.broadcast.emit('socketUsersUpdated',{
             users:socketUsers
         })
-
-        if(removeIndex.length>0){
-            setTimeout(() => {
-                socket.emit('responseOnlineUsers',{
-                    users:socketUsers
-                })
-            }, 1000);
-            
-        }
+        
     })
 
     socket.on('disconnect',function() {
-        console.log('deconnecxino');
         deconnectOneUser(socket.id);
         //socket user updates
-        //console.log(socketUsers);
         socket.emit('socketUsersUpdated',{
             users:socketUsers
         })
@@ -91,9 +92,16 @@ io.on("connection",function(socket) {
     })
 })
 
+const connInfo={
+    host:'localhost',
+    user:'tsila',
+    password:'12345',
+    database:'messagerie'
+}
+
 async function updateUserList() {
-    const conn= await mysql.createConnection(connInfo);
-    const [result,fields]=await conn.execute("select * from connection")
+    const connection= await mysql.createConnection(connInfo);
+    const [result,fields]=await connection.execute("select * from connection")
     const usersFromBD=result.map((el)=>el.uid);
     const userHere=socketUsers.map((el)=>el.user.uid)
     
@@ -148,12 +156,6 @@ async function removeSocketId(socket) {
 }
 */
 
-const connInfo={
-    host:'localhost',
-    user:'tsila',
-    password:'12345',
-    database:'messagerie'
-}
 
 
 const secretKey='**$my$*$secret§§=⁺¨^key'

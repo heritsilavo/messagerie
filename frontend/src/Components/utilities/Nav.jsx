@@ -13,7 +13,7 @@ function Nav() {
 
     const deconnexion=async ()=>{
         socket.disconnect();
-        
+
         if(accountServices.isLogged()){
             await axios.post('/logout',{
                 token:accountServices.getToken()
